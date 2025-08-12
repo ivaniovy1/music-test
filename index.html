@@ -1,1 +1,180 @@
-.
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>АвтоФонкер — Генератор фонк-треков</title>
+<style>
+  body {
+    background: #121212;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    min-height: 100vh;
+    margin: 0;
+  }
+  h1 {
+    margin-bottom: 1rem;
+    font-weight: 700;
+  }
+  .styles {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .style-btn {
+    background: #222;
+    border: 2px solid transparent;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.3s;
+    user-select: none;
+  }
+  .style-btn.selected {
+    border-color: #fuchsia;
+    background: #330033;
+  }
+  button.generate {
+    background: #fuchsia;
+    color: #121212;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: background 0.3s;
+    margin-bottom: 1rem;
+  }
+  button.generate:hover:not(:disabled) {
+    background: #ff00ffcc;
+  }
+  button.generate:disabled {
+    background: #99009988;
+    cursor: default;
+  }
+  audio {
+    margin-top: 1rem;
+    width: 100%;
+    max-width: 400px;
+    outline: none;
+    border-radius: 8px;
+    background: #222;
+  }
+  .info {
+    margin-top: 1rem;
+    font-style: italic;
+    color: #bbb;
+    min-height: 1.2em;
+  }
+</style>
+</head>
+<body>
+
+<h1>АвтоФонкер</h1>
+
+<div class="styles" role="radiogroup" aria-label="Выберите стиль фонка">
+  <div class="style-btn selected" data-style="memphis" role="radio" aria-checked="true" tabindex="0">Memphis 90’s</div>
+  <div class="style-btn" data-style="drift" role="radio" aria-checked="false" tabindex="-1">Drift/Car meet</div>
+  <div class="style-btn" data-style="dark" role="radio" aria-checked="false" tabindex="-1">Dark/Slowed</div>
+  <div class="style-btn" data-style="cowbell" role="radio" aria-checked="false" tabindex="-1">Cowbell-heavy</div>
+</div>
+
+<button class="generate">Сделать трек</button>
+
+<audio controls hidden></audio>
+
+<div class="info">Выберите стиль и нажмите «Сделать трек»</div>
+
+<script>
+  const styleButtons = document.querySelectorAll('.style-btn');
+  const generateBtn = document.querySelector('button.generate');
+  const audioPlayer = document.querySelector('audio');
+  const info = document.querySelector('.info');
+
+  let selectedStyle = 'memphis';
+  let isGenerating = false;
+
+  // Заглушечные треки (короткие фонк-сэмплы на base64, тут для примера 4 варианта)
+  const dummyTracks = {
+    memphis: [
+      'data:audio/mp3;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjYwLjEwNAAAAAAAAAAAAAAA//uQxAAABAAAAABAAZGF0YQAAAABmZ2ZnZmZnZg==', // пустой очень короткий mp3 (пример)
+      'data:audio/mp3;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjYwLjEwNAAAAAAAAAAAAAAA//uQxAAABAAAAABAAZGF0YQAAAABmZmZmZmZmZmZm', 
+    ],
+    drift: [
+      'data:audio/mp3;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjYwLjEwNAAAAAAAAAAAAAAA//uQxAAABAAAAABAAZGF0YQAAAABmZmZmZmZmZmZm',
+    ],
+    dark: [
+      'data:audio/mp3;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjYwLjEwNAAAAAAAAAAAAAAA//uQxAAABAAAAABAAZGF0YQAAAABmZmZmZmZmZmZm',
+    ],
+    cowbell: [
+      'data:audio/mp3;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjYwLjEwNAAAAAAAAAAAAAAA//uQxAAABAAAAABAAZGF0YQAAAABmZmZmZmZmZmZm',
+    ]
+  };
+
+  function updateSelectedStyle(newStyle, clickedBtn) {
+    if (isGenerating) return;
+    selectedStyle = newStyle;
+    styleButtons.forEach(btn => {
+      btn.classList.remove('selected');
+      btn.setAttribute('aria-checked', 'false');
+      btn.tabIndex = -1;
+    });
+    clickedBtn.classList.add('selected');
+    clickedBtn.setAttribute('aria-checked', 'true');
+    clickedBtn.tabIndex = 0;
+    clickedBtn.focus();
+    info.textContent = `Выбран стиль: ${newStyle}`;
+  }
+
+  styleButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      updateSelectedStyle(btn.dataset.style, btn);
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        updateSelectedStyle(btn.dataset.style, btn);
+      }
+    });
+  });
+
+  function fakeGenerateTrack(style) {
+    return new Promise((resolve) => {
+      info.textContent = `Генерация трека в стиле ${style}... 🎶`;
+      generateBtn.disabled = true;
+      // Имитируем генерацию 3 секунды
+      setTimeout(() => {
+        // Выбираем случайный dummy трек
+        const tracks = dummyTracks[style];
+        const track = tracks[Math.floor(Math.random() * tracks.length)];
+        resolve(track);
+      }, 3000);
+    });
+  }
+
+  async function generateTrack() {
+    if (isGenerating) return;
+    isGenerating = true;
+    const trackDataUrl = await fakeGenerateTrack(selectedStyle);
+    audioPlayer.src = trackDataUrl;
+    audioPlayer.hidden = false;
+    audioPlayer.play();
+    info.textContent = `Готово! Вот трек в стиле ${selectedStyle}. Можно слушать или сделать ещё один.`;
+    generateBtn.disabled = false;
+    isGenerating = false;
+  }
+
+  generateBtn.addEventListener('click', generateTrack);
+
+  // Инициализация
+  info.textContent = 'Выберите стиль и нажмите «Сделать трек»';
+
+</script>
+
+</body>
+</html>
